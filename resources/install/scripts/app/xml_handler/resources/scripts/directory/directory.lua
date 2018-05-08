@@ -169,6 +169,15 @@
 			--if (params:serialize() ~= nil) then
 			--	freeswitch.consoleLog("notice", "[xml_handler-directory.lua] Params:\n" .. params:serialize() .. "\n");
 			--end
+			
+
+			--!!!!!!!!! variables
+			--local orig_domain_name;
+			--local orig_domain_uuid;
+			local new_domain_name;
+			--local new_domain_uuid;
+			new_domain_name = params:getHeader("variable_new_domain_name");
+			--!!!!!!!!!
 
 			local loaded_from_db = false
 		--build the XML string from the database
@@ -186,6 +195,41 @@
 						--exits the script if we didn't connect properly
 							assert(dbh:connected());
 
+						--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						--!!!! Hack for select domain from user directory
+						--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						if (new_domain_name == nil) then
+						  --get the domain_uuid
+						  if (domain_name ~= nil) then
+							local sql = "SELECT a.domain_name, a.domain_uuid "
+								.. "FROM v_domains a, v_extensions b ";
+							if (domain_name == xml_handler.force_domain) then
+								sql = sql .. "WHERE b.extension=:user "
+							else
+								sql = sql .. "WHERE (b.extension=:user or b.number_alias=:user) "
+							end
+							sql = sql .. "and b.domain_uuid = a.domain_uuid "
+								  .. "and b.enabled = 'true' ";
+							local params = {user = user};
+							if (debug["sql"]) then
+								freeswitch.consoleLog("notice", "[HACK >>>] SQL: " .. sql .. "; params:" .. json.encode(params) .. "\n");
+							end
+							dbh:query(sql, params, function(rows)
+								orig_domain_uuid=domain_uuid;
+								orig_domain_name=domain_name;
+								new_domain_uuid = rows["domain_uuid"];
+								new_domain_name = rows["domain_name"];
+								domain_uuid=new_domain_uuid;
+								freeswitch.consoleLog("notice", "[>>>] new_domain_name=" .. new_domain_name .. "\n");
+							end);
+						  end
+						else
+							if (debug["sql"]) then
+								freeswitch.consoleLog("notice", "[HACK >>>] have new_domain_name=" .. new_domain_name .. "\n");
+							end
+						end
+						--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						
 						--get the domain_uuid
 							if (domain_uuid == nil) then
 								--get the domain_uuid
@@ -357,16 +401,20 @@
 								end
 
 							--set the presence_id
-								presence_id = (NUMBER_AS_PRESENCE_ID and sip_from_number or sip_from_user) .. "@" .. domain_name;
+								--!!presence_id = (NUMBER_AS_PRESENCE_ID and sip_from_number or sip_from_user) .. "@" .. domain_name;
+								presence_id = (NUMBER_AS_PRESENCE_ID and sip_from_number or sip_from_user) .. "@" .. xml_handler.force_domain;
 
 							--set the dial_string
 								if (string.len(row.dial_string) > 0) then
 									dial_string = row.dial_string;
 								else
-										local destination = (DIAL_STRING_BASED_ON_USERID and sip_from_number or sip_from_user) .. "@" .. domain_name;
+										--!!local destination = (DIAL_STRING_BASED_ON_USERID and sip_from_number or sip_from_user) .. "@" .. domain_name;
+										--!!for now use xml_handler.force_domain
+										local destination = (DIAL_STRING_BASED_ON_USERID and sip_from_number or sip_from_user) .. "@" .. xml_handler.force_domain;
 									--set a default dial string
 										if (dial_string == null) then
-											dial_string = "{sip_invite_domain=" .. domain_name .. ",presence_id=" .. presence_id .. "}${sofia_contact(" .. destination .. ")}";
+											--!!dial_string = "{sip_invite_domain=" .. domain_name .. ",presence_id=" .. presence_id .. "}${sofia_contact(" .. destination .. ")}";
+											dial_string = "{sip_invite_domain=" .. xml_handler.force_domain .. ",presence_id=" .. presence_id .. "}${sofia_contact(" .. destination .. ")}";
 										end
 									--set the an alternative dial string if the hostnames don't match
 										if (USE_FS_PATH) then
@@ -492,7 +540,14 @@
 							table.insert(xml, [[							</params>]]);
 							table.insert(xml, [[							<variables>]]);
 							table.insert(xml, [[								<variable name="domain_uuid" value="]] .. domain_uuid .. [["/>]]);
-							table.insert(xml, [[								<variable name="domain_name" value="]] .. domain_name .. [["/>]]);
+			
+			--!!				table.insert(xml, [[								<variable name="domain_name" value="]] .. domain_name .. [["/>]]);
+							table.insert(xml, [[								<variable name="domain_name" value="]] .. new_domain_name .. [["/>]]);
+
+			--!!!!!
+							table.insert(xml, [[								<variable name="new_domain_name" value="]] .. new_domain_name .. [["/>]]);
+			--!!!!!
+
 							table.insert(xml, [[								<variable name="extension_uuid" value="]] .. extension_uuid .. [["/>]]);
 							table.insert(xml, [[								<variable name="call_timeout" value="]] .. call_timeout .. [["/>]]);
 							table.insert(xml, [[								<variable name="caller_id_name" value="]] .. sip_from_user .. [["/>]]);
@@ -611,7 +666,8 @@
 							end
 							table.insert(xml, [[								<variable name="record_stereo" value="true"/>]]);
 							table.insert(xml, [[								<variable name="transfer_fallback_extension" value="operator"/>]]);
-							table.insert(xml, [[								<variable name="export_vars" value="domain_name"/>]]);
+--!!							table.insert(xml, [[								<variable name="export_vars" value="domain_name"/>]]);
+							table.insert(xml, [[								<variable name="export_vars" value="domain_name,new_domain_name"/>]]);
 							table.insert(xml, [[							</variables>]]);
 							table.insert(xml, [[						</user>]]);
 							table.insert(xml, [[					</users>]]);
@@ -649,11 +705,11 @@
 							end
 
 						--send the xml to the console
-							if (debug["xml_string"]) then
-								local file = assert(io.open(temp_dir .. "/" .. user .. "@" .. domain_name .. ".xml", "w"));
-								file:write(XML_STRING);
-								file:close();
-							end
+							--!!if (debug["xml_string"]) then
+							--!!	local file = assert(io.open(temp_dir .. "/" .. user .. "@" .. domain_name .. ".xml", "w"));
+							--!!	file:write(XML_STRING);
+							--!!	file:close();
+							--!!end
 
 						--send to the console
 							if (debug["cache"]) then
