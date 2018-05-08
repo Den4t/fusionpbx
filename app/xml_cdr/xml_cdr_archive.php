@@ -49,6 +49,7 @@
 
 //xml cdr include
 	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
+	$archive_request = 'true';
 	require_once "xml_cdr_inc.php";
 
 //javascript function: send_cmd
@@ -79,9 +80,9 @@
 //page title and description
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "<tr>\n";
-	echo "<td align='left' nowrap='nowrap' style='vertical-align: top;'><b>".$text['title']."</b><br><br><br></td>\n";
+	echo "<td align='left' nowrap='nowrap' style='vertical-align: top;'><b>".$text['title-archive']."</b><br><br><br></td>\n";
 	echo "<td align='right' width='100%' style='vertical-align: top;'>\n";
-	echo "	<form id='frm_export' method='post' action='xml_cdr_export.php'>\n";
+	echo "	<form id='frm_export' method='post' action='xml_cdr_export.php?archive_request=true'>\n";
 	echo "	<input type='hidden' name='cdr_id' value='".$cdr_id."'>\n";
 	echo "	<input type='hidden' name='direction' value='".$direction."'>\n";
 	echo "	<input type='hidden' name='caller_id_name' value='".$caller_id_name."'>\n";
@@ -132,27 +133,22 @@
 	echo "			<td style='vertical-align: top;'>\n";
 	if (permission_exists('xml_cdr_all')) {
 		if ($_REQUEST['show'] != 'alll') {
-			echo "		<input type='button' class='btn' value='".$text['button-show_all']."' onclick=\"window.location='xml_cdr.php?show=all';\">\n";
+			echo "		<input type='button' class='btn' value='".$text['button-show_all']."' onclick=\"window.location='xml_cdr_archive.php?show=all';\">\n";
 		}
 	}
-	if (permission_exists('xml_cdr_search_advanced')) {
-		if ($_REQUEST['show'] == 'all') {
-			$query_string = "show=all";
-		}
-		echo "			<input type='button' class='btn' value='".$text['button-advanced_search']."' onclick=\"window.location='xml_cdr_search.php?$query_string';\">\n";
-	}
+//	if (permission_exists('xml_cdr_search_advanced')) {
+//		if ($_REQUEST['show'] == 'all') {
+//			$query_string = "show=all";
+//		}
+//		echo "			<input type='button' class='btn' value='".$text['button-advanced_search']."' onclick=\"window.location='xml_cdr_search.php?$query_string';\">\n";
+//	}
+
 	if ($_GET['call_result'] != 'missed') {
-		echo "			<input type='button' class='btn' value='".$text['button-missed']."' onclick=\"document.location.href='xml_cdr.php?call_result=missed';\">\n";
+		echo "			<input type='button' class='btn' value='".$text['button-missed']."' onclick=\"document.location.href='xml_cdr_archive.php?call_result=missed';\">\n";
 	}
-	echo "				<input type='button' class='btn' value='".$text['button-statistics']."' onclick=\"document.location.href='xml_cdr_statistics.php';\">\n";
-	if (permission_exists('xml_cdr_archive')) {
-		if ($_REQUEST['show'] == 'all') {
-			$query_string = "show=all";
-		}
-		echo "			<input type='button' class='btn' value='".$text['button-archive']."' onclick=\"window.location='xml_cdr_archive.php?$query_string';\">\n";
-	}
+//	echo "				<input type='button' class='btn' value='".$text['button-statistics']."' onclick=\"document.location.href='xml_cdr_statistics.php';\">\n";
 	echo "				<input type='button' class='btn' value='".$text['button-export']."' onclick=\"toggle_select('export_format');\">\n";
-	echo "				<input type='button' class='btn' value='".$text['button-refresh']."' onclick=\"document.location.href='xml_cdr.php';\" />\n";
+	echo "				<input type='button' class='btn' name='' alt='back' onclick=\"window.location='xml_cdr.php'\" value='Back'>";	
 	echo "			</td>";
 	echo "			<td style='vertical-align: top;'>";
 	echo "				<select class='formfld' style='display: none; width: auto; margin-left: 3px;' name='export_format' id='export_format' onchange=\"display_message('".$text['message-preparing_download']."'); toggle_select('export_format'); document.getElementById('frm_export').submit();\">\n";
@@ -161,7 +157,9 @@
 	echo "					<option value='pdf'>PDF</option>\n";
 	echo "				</select>\n";
 	echo "			</td>\n";
-	echo "			<td style='vertical-align: top; padding-left: 15px;'>".$paging_controls_mini."</td>\n";
+	if ($result_count == $rows_per_page && $paging_controls_mini != '') {
+		echo "		<td style='vertical-align: top; padding-left: 15px;'>".$paging_controls_mini."</td>\n";
+	}
 	echo "		</tr>\n";
 	echo "	</table>\n";
 	echo "	</form>\n";
@@ -229,7 +227,7 @@
 				echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 				echo "	<tr>\n";
 				echo "		<td class='vncell' valign='top' nowrap='nowrap'>\n";
-				echo "			".$text['label-caller_id_number']."\n";
+				echo "			".$text['label-source']."\n";
 				echo "		</td>\n";
 				echo "		<td class='vtable' align='left' style='white-space: nowrap;'>\n";
 				echo "			<input type='text' class='formfld' style='".$style['caller_id_number']."' name='caller_id_number' id='caller_id_number' value='".$caller_id_number."'>\n";
@@ -260,7 +258,7 @@
 				echo "	</tr>\n";
 				echo "	<tr>\n";
 				echo "		<td class='vncell' valign='top' nowrap='nowrap'>\n";
-				echo "			".$text['label-caller_id_name']."\n";
+				echo "			".$text['label-cid-name']."\n";
 				echo "		</td>\n";
 				echo "		<td class='vtable' align='left'>\n";
 				echo "			<input type='text' class='formfld' name='caller_id_name' value='$caller_id_name'>\n";
@@ -367,21 +365,21 @@
 
 //show the results
 	$col_count = 8;
-	echo "<form name='frm' method='post' action='xml_cdr_delete.php'>\n";
+	//echo "<form name='frm' method='post' action='xml_cdr_delete.php?archive_request=true'>\n";
 	echo "<table class='tr_hover' width='100%' cellpadding='0' cellspacing='0' border='0'>\n";
 	echo "<tr>\n";
-	if (permission_exists('xml_cdr_delete') && $result_count > 0) {
-		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
-		$col_count++;
-	}
+	//if (permission_exists('xml_cdr_delete') && $result_count > 0) {
+	//	echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
+	//	$col_count++;
+	//}
 	//column headings
 		echo "<th>&nbsp;</th>\n";
 		if ($_REQUEST['show'] == "all" && permission_exists('xml_cdr_all')) {
 			echo th_order_by('domain_name', $text['label-domain'], $order_by, $order, null, null, $param);
 			$col_count++;
 		}
-		echo th_order_by('caller_id_name', $text['label-caller_id_name'], $order_by, $order, null, null, $param);
-		echo th_order_by('caller_id_number', $text['label-caller_id_number'], $order_by, $order, null, null, $param);
+		echo th_order_by('caller_id_name', $text['label-cid-name'], $order_by, $order, null, null, $param);
+		echo th_order_by('caller_id_number', $text['label-source'], $order_by, $order, null, null, $param);
 		if (permission_exists('caller_destination')) {
 			echo th_order_by('caller_destination', $text['label-caller_destination'], $order_by, $order, null, null, $param);
 		}
@@ -422,7 +420,7 @@
 		else {
 			echo "<th>".$text['label-status']."</th>\n";
 		}
-		if (if_group("admin") || if_group("superadmin") || if_group("cdr")) {
+/*		if (if_group("admin") || if_group("superadmin") || if_group("cdr")) {
 			echo "<td class='list_control_icon'>";
 			if (permission_exists('xml_cdr_delete') && $result_count > 0) {
 				echo "<a href='javascript:void(0);' onclick=\"if (confirm('".$text['confirm-delete']."')) { document.forms.frm.submit(); }\" alt='".$text['button-delete']."'>".$v_link_label_delete."</a>";
@@ -430,7 +428,7 @@
 			echo "</td>\n";
 			$col_count++;
 		}
-		echo "</tr>\n";
+*/		echo "</tr>\n";
 
 	if (file_exists($_SERVER["PROJECT_ROOT"]."/app/billing/app_config.php")){
 		require_once "app/billing/resources/functions/rating.php";
@@ -489,21 +487,21 @@
 					echo "<tr id='recording_progress_bar_".$row['uuid']."' style='display: none;'><td class='".$row_style[$c]." playback_progress_bar_background' style='padding: 0; border: none;' colspan='".$col_count."'><span class='playback_progress_bar' id='recording_progress_".$row['uuid']."'></span></td></tr>\n";
 				}
 
-				if ($row['raw_data_exists'] && permission_exists('xml_cdr_details')) {
-					$tr_link = "href='xml_cdr_details.php?uuid=".$row['uuid'].(($_REQUEST['show']) ? "&show=all" : null)."'";
-				}
-				else {
-					$tr_link = null;
-				}
-				echo "<tr ".$tr_link.">\n";
-				if (permission_exists('xml_cdr_delete')) {
+			//	if ($row['raw_data_exists'] && permission_exists('xml_cdr_details')) {
+			//		$tr_link = "href='xml_cdr_details.php?uuid=".$row['uuid'].(($_REQUEST['show']) ? "&show=all" : null)."'";
+			//	}
+			//	else {
+			//		$tr_link = null;
+			//	}
+			//	echo "<tr ".$tr_link.">\n";
+/*				if (permission_exists('xml_cdr_delete')) {
 					echo "	<td valign='top' class='".$row_style[$c]." tr_link_void' style='text-align: center; vertical-align: middle; padding: 0px;'>";
 					echo "		<input type='checkbox' name='id[".$index."]' id='checkbox_".$row['uuid']."' value='".$row['uuid']."' onclick=\"if (this.checked) { document.getElementById('recording_".$row['uuid']."').value='".base64_encode($record_path.'/'.$record_name)."' } else { document.getElementById('recording_".$row['uuid']."').value=''; document.getElementById('chk_all').checked = false; }\">";
 					echo "		<input type='hidden' name='rec[".$index."]' id='recording_".$row['uuid']."'>";
 					echo "	</td>";
 					$xml_ids[] = 'checkbox_'.$row['uuid'];
 				}
-			//determine call result and appropriate icon
+*/			//determine call result and appropriate icon
 				echo "<td valign='top' class='".$row_style[$c]."'>\n";
 				if ($theme_cdr_images_exist) {
 					if ($row['direction'] == 'inbound' || $row['direction'] == 'local') {
@@ -693,9 +691,9 @@
 					if ($tr_link!=null) {
 						echo "		<a $tr_link title='".$text['button-view']."'>$v_link_label_view</a>"; //CJB
 					}
-					if (permission_exists('xml_cdr_delete')) {
-						echo 	"<a href='xml_cdr_delete.php?id[]=".$row['uuid']."&rec[]=".(($record_path != '') ? base64_encode($record_path.'/'.$record_name) : null)."' alt='".$text['button-delete']."' onclick=\"return confirm('".$text['confirm-delete']."')\">".$v_link_label_delete."</a>";
-					}
+//					if (permission_exists('xml_cdr_delete')) {
+//						echo 	"<a href='xml_cdr_delete.php?archive_request=true&id[]=".$row['uuid']."&rec[]=".(($record_path != '') ? base64_encode($record_path.'/'.$record_name) : null)."' alt='".$text['button-delete']."' onclick=\"return confirm('".$text['confirm-delete']."')\">".$v_link_label_delete."</a>";
+//					}
 					echo "	</td>\n";
 				}
 			echo "</tr>\n";
@@ -708,7 +706,9 @@
 	echo "</table>";
 	echo "</form>";
 	echo "<br><br>";
-	echo $paging_controls;
+	if ($result_count == $rows_per_page) {
+		echo $paging_controls;
+	}
 	echo "<br><br>";
 
 	// check or uncheck all checkboxes
