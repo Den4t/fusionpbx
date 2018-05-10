@@ -209,8 +209,10 @@
 								sql = sql .. "WHERE (b.extension=:user or b.number_alias=:user) "
 							end
 							sql = sql .. "and b.domain_uuid = a.domain_uuid "
-								  .. "and b.enabled = 'true' ";
-							local params = {user = user};
+								  .. "and b.enabled = 'true' "
+								  .. "and exists (select 1 from v_domains where "
+								  .. "domain_name = :domain_name)";
+							local params = {user = user, domain_name = domain_name};
 							if (debug["sql"]) then
 								freeswitch.consoleLog("notice", "[HACK >>>] SQL: " .. sql .. "; params:" .. json.encode(params) .. "\n");
 							end
@@ -668,6 +670,7 @@
 							table.insert(xml, [[								<variable name="transfer_fallback_extension" value="operator"/>]]);
 --!!							table.insert(xml, [[								<variable name="export_vars" value="domain_name"/>]]);
 							table.insert(xml, [[								<variable name="export_vars" value="domain_name,new_domain_name"/>]]);
+
 							table.insert(xml, [[							</variables>]]);
 							table.insert(xml, [[						</user>]]);
 							table.insert(xml, [[					</users>]]);

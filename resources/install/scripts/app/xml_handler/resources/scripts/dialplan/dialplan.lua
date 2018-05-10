@@ -88,6 +88,7 @@
 			table.insert(xml, [[	<section name="dialplan" description="">]]);
 			table.insert(xml, [[		<context name="]] .. call_context .. [[">]]);
 
+
 		--get the dialplan xml
 			if (context_name == 'public' and context_type == 'single') then
 				sql = "select d.domain_name, dialplan_xml from v_dialplans as p, v_domains as d ";
@@ -120,6 +121,37 @@
 					table.insert(xml, [[		</extension>]]);
 				end
 			else
+				--[[!!!!!!!!Hack find domain_name by user_name !!!!!!!!
+					variable_user_name: mks444                                                                                      variable_domain_name: 192.168.100.244
+				--]]
+				local v_domain_name=params:getHeader("variable_domain_name");
+				if (v_domain_name == xml_handler.force_domain) then
+				  --get the domain_uuid
+				  local user = params:getHeader("variable_user_name");
+				  local sql = "SELECT a.domain_name, a.domain_uuid "
+					.. "FROM v_domains a, v_extensions b "
+					.. "WHERE b.extension=:user "
+					.. "and b.domain_uuid = a.domain_uuid "
+					.. "and b.enabled = 'true' ";
+				  local params = {user = user};
+				  if (debug["sql"]) then
+					freeswitch.consoleLog("notice", "[HACK >>>] SQL: " .. sql .. "; params:" .. json.encode(params) .. "\n");
+				  end
+				  dbh:query(sql, params, function(rows)
+					new_domain_uuid = rows["domain_uuid"];
+					new_domain_name = rows["domain_name"];
+					domain_uuid=new_domain_uuid;
+					domain_name=new_domain_name;
+					freeswitch.consoleLog("notice", "[>>>] new_domain_name=" .. new_domain_name .. "\n");
+					table.insert(xml, [[		<extension name="set_domain_name" continue="true" uuid="9913df49-0757-414b-8ccc-bcae2fd81ae7">]]);
+					table.insert(xml, [[			<condition field="" expression="">]]);
+					table.insert(xml, [[				<action application="set" data="domain_name=]]..new_domain_name..[[" inline="true"/>]]);
+					table.insert(xml, [[			</condition>]]);
+					table.insert(xml, [[		</extension>]]);
+				  end);
+				end
+				--!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				
 				sql = "select dialplan_xml from v_dialplans as p ";
 				if (context_name == "public") then
 					sql = sql .. "where p.dialplan_context = :call_context ";
@@ -169,8 +201,11 @@
 	end --if XML_STRING
 
 --send the xml to the console
+--!!	if (debug["xml_string"]) then
+--!!		local file = assert(io.open(temp_dir .. "/" .. key .. ".xml", "w"));
+--!!		file:write(XML_STRING);
+--!!		file:close();
+--!!	end
 	if (debug["xml_string"]) then
-		local file = assert(io.open(temp_dir .. "/" .. key .. ".xml", "w"));
-		file:write(XML_STRING);
-		file:close();
-	end
+                freeswitch.consoleLog("notice", "[xml_handler <<<<DIALPLAN>>>] " .. XML_STRING .. " \n");
+        end
